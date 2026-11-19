@@ -1,0 +1,41 @@
+﻿# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+instance/
+.coverage
+htmlcov/
+
+# Node.js
+node_modules/
+dist/
+npm-debug.log*
+
+# Logs
+*.log
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+
+# Local application database
+backend/instance/
+*.db
+*.sqlite3
