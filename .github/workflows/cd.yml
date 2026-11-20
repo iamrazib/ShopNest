@@ -1,0 +1,102 @@
+
+name: ShopNest CD
+
+on:
+  workflow_run:
+    workflows:
+      - ShopNest CI
+    types:
+      - completed
+
+  workflow_dispatch:
+    inputs:
+      confirm_release:
+        description: "Type RELEASE to confirm production preflight"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shopnest-cd
+  cancel-in-progress: false
+
+jobs:
+
+  staging-preflight:
+    name: Staging Preflight
+    if: >-
+      ${{
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.event == 'push'
+      }}
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout successful CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Identify release
+        env:
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "Staging preflight for commit: $RELEASE_SHA"
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Validate application configuration
+        run: |
+          test -f backend/Dockerfile
+          test -f frontend/Dockerfile
+          test -f docker-compose.yml
+          test -f .env.example
+          echo "Staging source validation passed."
+
+      - name: Deployment readiness
+        run: |
+          echo "Staging preflight completed."
+          echo "Actual EC2 deployment is not configured yet."
+
+  production-preflight:
+    name: Production Manual Preflight
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main'
+      }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Verify release confirmation
+        env:
+          CONFIRM_RELEASE: ${{ inputs.confirm_release }}
+        run: |
+          if [ "$CONFIRM_RELEASE" != "RELEASE" ]; then
+            echo "Confirmation rejected."
+            exit 1
+          fi
+          echo "Manual release confirmation accepted."
+
+      - name: Checkout selected commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Identify production release
+        run: |
+          echo "Production candidate commit: $GITHUB_SHA"
+          git rev-parse HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Deployment readiness
+        run: |
+          echo "Production preflight completed."
+          echo "No production deployment has occurred."
+          echo "EC2 deployment and rollback will be added later."
